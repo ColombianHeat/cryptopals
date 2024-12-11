@@ -30,7 +30,7 @@ func DetectXor(fileDir string) string {
 	highestScoreIdx := 0
 	// decrypt and score each string
 	for idx, str := range strings {
-		decrypted_str := SingleByteXor(str)
+		decrypted_str, _ := SingleByteXor(str)
 		score := ScoreString(decrypted_str)
 		if score > highestScore {
 			highestScore = score
@@ -39,5 +39,6 @@ func DetectXor(fileDir string) string {
 	}
 	// return the decrypted string with the highest score
 	winningStr := strings[highestScoreIdx] // "Now that the party is jumping\n"
-	return SingleByteXor(winningStr)
+	decrypted, _ := SingleByteXor(winningStr)
+	return decrypted
 }
