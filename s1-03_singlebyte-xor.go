@@ -8,7 +8,7 @@ import (
 func ScoreString(s string) int {
 	score := 0
 	// goodChars := "aeioustAEIOUST "
-	goodChars := "etaoin shrdluETAOIN SHRDLU"
+	goodChars := "aeiourstlmn AEIOURSTLMN"
 	badChars := "!@#$%^&*()-_=+/?><[{]}|]"
 	for _, char := range s {
 		if strings.ContainsAny(string(char), goodChars) {

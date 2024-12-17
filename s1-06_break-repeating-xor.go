@@ -1,8 +1,8 @@
 package set_one
 
 import (
+	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 	"sort"
 	"strings"
 )
@@ -29,17 +29,7 @@ func CalcHammingDist(str1, str2 string) int {
 	return n_differingBits
 }
 
-// func sanitizeOutput(input string) string {
-// 	sanitized := make([]rune, 0, len(input))
-// 	for _, r := range input {
-// 		if r >= 32 && r <= 126 { // Printable ASCII range
-// 			sanitized = append(sanitized, r)
-// 		}
-// 	}
-// 	return string(sanitized)
-// }
-
-func BreakRepeatingXor(fileDir string) string {
+func BreakRepeatingXor(fileDir string) (string, string) {
 	lines, err := readLines(fileDir)
 	if err != nil {
 		panic(err)
@@ -48,23 +38,26 @@ func BreakRepeatingXor(fileDir string) string {
 	for _, line := range lines {
 		toDecrypt.WriteString(line)
 	}
+	toDecryptBytes, err := base64.StdEncoding.DecodeString(toDecrypt.String())
+	if err != nil {
+		panic(err)
+	}
 	editDists := make(map[int]float64)
 	for keySize := 2; keySize < 40; keySize++ {
-		firstBytes := []byte(toDecrypt.String())[0:keySize]
-		secondBytes := []byte(toDecrypt.String())[keySize : keySize*2]
-		thirdBytes := []byte(toDecrypt.String())[keySize*2 : keySize*3]
-		fourthBytes := []byte(toDecrypt.String())[keySize*3 : keySize*4]
-		fifthBytes := []byte(toDecrypt.String())[keySize*4 : keySize*5]
-		sixthBytes := []byte(toDecrypt.String())[keySize*5 : keySize*6]
-		seventhBytes := []byte(toDecrypt.String())[keySize*6 : keySize*7]
-		eighthBytes := []byte(toDecrypt.String())[keySize*7 : keySize*8]
+		firstBytes := toDecryptBytes[0:keySize]
+		secondBytes := toDecryptBytes[keySize : keySize*2]
+		thirdBytes := toDecryptBytes[keySize*2 : keySize*3]
+		fourthBytes := toDecryptBytes[keySize*3 : keySize*4]
+		fifthBytes := toDecryptBytes[keySize*4 : keySize*5]
+		sixthBytes := toDecryptBytes[keySize*5 : keySize*6]
+		seventhBytes := toDecryptBytes[keySize*6 : keySize*7]
+		eighthBytes := toDecryptBytes[keySize*7 : keySize*8]
 		editDist1 := float64(CalcHammingDist(string(firstBytes), string(secondBytes))) / float64(keySize)
 		editDist2 := float64(CalcHammingDist(string(thirdBytes), string(fourthBytes))) / float64(keySize)
 		editDist3 := float64(CalcHammingDist(string(fifthBytes), string(sixthBytes))) / float64(keySize)
 		editDist4 := float64(CalcHammingDist(string(seventhBytes), string(eighthBytes))) / float64(keySize)
 		editDist := (editDist1 + editDist2 + editDist3 + editDist4) / 4.0
 		editDists[keySize] = editDist
-		fmt.Printf("KeySize: %d, EditDist: %f\n", keySize, editDist)
 	}
 
 	// sort editDists based on the edit distance
@@ -87,29 +80,55 @@ func BreakRepeatingXor(fileDir string) string {
 		probableKeySizes = append(probableKeySizes, kv.key)
 	}
 
-	// try to break the cipher with each of our three key sizes
+	// Try to break the cipher with each of our three key sizes
+	var highestFinalDecrypted string
+	var highestKeyString string
+	finalDecryptedScore := 0
 	for _, keySize := range probableKeySizes {
-		highestScore := 0
-		var bestBlock []byte
-		var bestKey int
+		fullKey := make([]int, keySize) // Store the derived key bytes for the current key size
+		decryptedBlocks := make([][]byte, keySize) // Store the decrypted blocks for later reconstruction
+
 		for i := 0; i < keySize; i++ {
 			var block []byte
-			for j := 0; j < len([]byte(toDecrypt.String())); j++ {
+			// Transpose the ciphertext into blocks based on the current key size
+			for j := 0; j < len(toDecryptBytes); j++ {
 				if j%keySize == i {
-					block = append(block, []byte(toDecrypt.String())[j])
+					block = append(block, toDecryptBytes[j])
 				}
 			}
-			decrypted, key := SingleByteXor(hex.EncodeToString(block))
-			score := ScoreString(decrypted)
-			if score > highestScore {
-				highestScore = score
-				bestBlock = []byte(decrypted)
-				bestKey = key
+			// Decrypt the current block using single-byte XOR
+			decryptedUnordered, key := SingleByteXor(hex.EncodeToString(block))
+			decryptedBlocks[i] = []byte(decryptedUnordered) // Store the decrypted block
+			fullKey[i] = key // Store the key byte for this block
+		}
+
+		// Generate the final decrypted string
+		var finalDecrypted strings.Builder
+		// Iterate through the blocks in an interleaved manner to reconstruct the plaintext
+		for j := 0; j < len(toDecryptBytes); j++ {
+			blockIndex := j % keySize // Determine which block this character belongs to
+			charIndex := j / keySize // Determine the position within that block
+			if charIndex < len(decryptedBlocks[blockIndex]) {
+				finalDecrypted.WriteByte(decryptedBlocks[blockIndex][charIndex]) // Append the character to the final string
 			}
 		}
-		fmt.Printf("%s\nKey: %d\n\n\n", string(bestBlock), bestKey)
-	}
 
-	fmt.Println(probableKeySizes)
-	return ""
+		// Print the reconstructed plaintext and the derived key
+		keyString := string(convertToBytes(fullKey))
+		if ScoreString(finalDecrypted.String()) > finalDecryptedScore {
+			highestFinalDecrypted = finalDecrypted.String()
+			finalDecryptedScore = ScoreString(finalDecrypted.String())
+			highestKeyString = keyString
+		}
+	}
+return highestFinalDecrypted, highestKeyString
 }
+
+func convertToBytes(ints []int) []byte {
+	bytes := make([]byte, len(ints))
+	for i, v := range ints {
+		bytes[i] = byte(v) // Safely cast each integer to a byte
+	}
+	return bytes
+}
+
