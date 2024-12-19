@@ -29,29 +29,20 @@ func CalcHammingDist(str1, str2 string) int {
 	return n_differingBits
 }
 
-func BreakRepeatingXor(fileDir string) (string, string) {
-	lines, err := readLines(fileDir)
-	if err != nil {
-		panic(err)
-	}
-	var toDecrypt strings.Builder
-	for _, line := range lines {
-		toDecrypt.WriteString(line)
-	}
-	toDecryptBytes, err := base64.StdEncoding.DecodeString(toDecrypt.String())
-	if err != nil {
-		panic(err)
-	}
+// Assumes all key sizes from 2 to 40. Calculates hamming distance of the first several blocks of size keySize
+// and returns the key sizes that has the lowest average hamming distance
+// These are the most likely key sizes used to encrypt the original plaintext
+func findPropableKeySizes(bytes []byte, n_results int) []int {
 	editDists := make(map[int]float64)
-	for keySize := 2; keySize < 40; keySize++ {
-		firstBytes := toDecryptBytes[0:keySize]
-		secondBytes := toDecryptBytes[keySize : keySize*2]
-		thirdBytes := toDecryptBytes[keySize*2 : keySize*3]
-		fourthBytes := toDecryptBytes[keySize*3 : keySize*4]
-		fifthBytes := toDecryptBytes[keySize*4 : keySize*5]
-		sixthBytes := toDecryptBytes[keySize*5 : keySize*6]
-		seventhBytes := toDecryptBytes[keySize*6 : keySize*7]
-		eighthBytes := toDecryptBytes[keySize*7 : keySize*8]
+	for keySize := 2; keySize < 41; keySize++ {
+		firstBytes := bytes[0:keySize]
+		secondBytes := bytes[keySize : keySize*2]
+		thirdBytes := bytes[keySize*2 : keySize*3]
+		fourthBytes := bytes[keySize*3 : keySize*4]
+		fifthBytes := bytes[keySize*4 : keySize*5]
+		sixthBytes := bytes[keySize*5 : keySize*6]
+		seventhBytes := bytes[keySize*6 : keySize*7]
+		eighthBytes := bytes[keySize*7 : keySize*8]
 		editDist1 := float64(CalcHammingDist(string(firstBytes), string(secondBytes))) / float64(keySize)
 		editDist2 := float64(CalcHammingDist(string(thirdBytes), string(fourthBytes))) / float64(keySize)
 		editDist3 := float64(CalcHammingDist(string(fifthBytes), string(sixthBytes))) / float64(keySize)
@@ -76,9 +67,35 @@ func BreakRepeatingXor(fileDir string) (string, string) {
 
 	// get the 3 key sizes corresponding to the three lowest edit distances
 	probableKeySizes := []int{}
-	for _, kv := range sortedEditDists[:3] {
+	for _, kv := range sortedEditDists[:n_results] {
 		probableKeySizes = append(probableKeySizes, kv.key)
 	}
+
+	return probableKeySizes
+}
+
+func convertToBytes(ints []int) []byte {
+	bytes := make([]byte, len(ints))
+	for i, v := range ints {
+		bytes[i] = byte(v) // Safely cast each integer to a byte
+	}
+	return bytes
+}
+
+func BreakRepeatingXor(fileDir string) (string, string) {
+	lines, err := readLines(fileDir)
+	if err != nil {
+		panic(err)
+	}
+	var toDecrypt strings.Builder
+	for _, line := range lines {
+		toDecrypt.WriteString(line)
+	}
+	toDecryptBytes, err := base64.StdEncoding.DecodeString(toDecrypt.String())
+	if err != nil {
+		panic(err)
+	}
+	probableKeySizes := findPropableKeySizes(toDecryptBytes, 3)
 
 	// Try to break the cipher with each of our three key sizes
 	var highestFinalDecrypted string
@@ -124,11 +141,4 @@ func BreakRepeatingXor(fileDir string) (string, string) {
 return highestFinalDecrypted, highestKeyString
 }
 
-func convertToBytes(ints []int) []byte {
-	bytes := make([]byte, len(ints))
-	for i, v := range ints {
-		bytes[i] = byte(v) // Safely cast each integer to a byte
-	}
-	return bytes
-}
 
