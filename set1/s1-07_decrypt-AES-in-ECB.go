@@ -7,7 +7,8 @@ import (
 )
 
 // decrypts AES-128 in ECB. Key size of 16
-func DecryptAesInECB(ciphertextPath string, key string, blockSize int) string {
+func DecryptAesInECB(ciphertextPath string, key string) string {
+	blockSize := len([]byte(key))
 	b64ToDecrypt := shared.ImportTxtFile(ciphertextPath)
 	ciphertext, err := base64.StdEncoding.DecodeString(b64ToDecrypt)
 	if err != nil {
