@@ -6,69 +6,70 @@ import (
 	"encoding/base64"
 )
 
-func EncryptAesInECB(plainText string, key string) string {
-	plainTextBytes := []byte(plainText)
+func EncryptAesInECB(plainTextBytes []byte, key string) []byte {
 	blockSize := len([]byte(key))
 	cipher, err := aes.NewCipher([]byte(key)) // AES cipher using key of length blocksize. 16 bytes in this case
 	if err != nil {
 		panic(err)
 	}
 	encryptedBytes := make([]byte, len(plainTextBytes))
-	
+
 	for bs, be := 0, blockSize; bs < len(plainTextBytes); bs, be = bs+blockSize, be+blockSize {
 		// bs = start of block, be = end of block
 		// increment by block size each iteration and update decryptedBytes
 		cipher.Encrypt(encryptedBytes[bs:be], plainTextBytes[bs:be])
 	}
-	return string(encryptedBytes)
+	return encryptedBytes
 }
 
 // The ECB decrypt fnc in set 1 takes a file path as input. This takes a ciphertext string directly
-func DecryptAesInECB(ciphertext string, key string) string {
-	ciphertextBytes := []byte(ciphertext)
+func DecryptAesInECB(ciphertextBytes []byte, key string) []byte {
 	blockSize := len([]byte(key))
 	cipher, err := aes.NewCipher([]byte(key)) // AES cipher using key of length blocksize
 	if err != nil {
 		panic(err)
 	}
-	decryptedBytes := make([]byte, len(ciphertext))
+	decryptedBytes := make([]byte, len(ciphertextBytes))
 
-	for bs, be := 0, blockSize; bs < len(ciphertext); bs, be = bs + blockSize , be + blockSize { 
+	for bs, be := 0, blockSize; bs < len(ciphertextBytes); bs, be = bs + blockSize , be + blockSize {
 		// bs = start of block, be = end of block
 		// increment by block size each iteration and update decryptedBytes
 		cipher.Decrypt(decryptedBytes[bs:be], ciphertextBytes[bs:be])
 	}
-	return string(decryptedBytes)
+	return decryptedBytes
 }
 
-func XorByteVectors(a []byte, b []byte) []byte {
-	if len(a) != len(b) {
-		panic("buffers are not the same length")
+// unpadPKCS7 takes a byte slice that has been padded with the PKCS7 algorithm and returns a byte slice with the padding removed.
+func unpadPKCS7(plainTextBytes []byte) []byte {
+	padLen := 0
+	for i := len(plainTextBytes) - 1; i > 0; i-- {
+		if plainTextBytes[i] == 4 {
+			padLen++
+		} else {
+			break
+		}
 	}
-	vectorLen := len(a)
-	xorBin := make([]byte, vectorLen) // empty byte slice
-	for i := 0; i < vectorLen, i++ {
-		xorBin[i] = a[i] ^ b[i]
-	}
-	return xorBin
+	return plainTextBytes[:len(plainTextBytes) - padLen]
 }
 
-func ImplementCBCMode(ciphertextPath string, key string) string {
+func DecryptCBCMode(cipherTextPath string, key string) []byte {
 	blockSize := len([]byte(key))
-	iv := make([]byte, blockSize)
-	for i := 0; i < blockSize; i++ {
-		iv[i] = byte(0) // initialization vector is all ASCII 0
-	}
-	ciphertextB64 := shared.ImportTxtFile(ciphertextPath)
+	iv := make([]byte, blockSize) // initialization vector (all zeroes)
+	ciphertextB64 := shared.ImportTxtFile(cipherTextPath)
 	ciphertextBytes, err := base64.StdEncoding.DecodeString(ciphertextB64)
 	if err != nil {
 		panic(err)
 	}
 
-	// FIXME: Decode using CBC. Still not sure what the steps are. Research.
+	output := make([]byte, len(ciphertextBytes))
+	// XOR IV with first block. Then encrypt with ECB. IV gets updated for next iteration.
 	for bs, be := 0, blockSize; bs < len(ciphertextBytes); bs, be = bs+blockSize, be+blockSize {
-		ecbEncrypted := EncryptAesInECB(string(ciphertextBytes[bs:be]), key) // encrypt to ECB
-		iv = XorByteVectors([]byte(ecbEncrypted), iv) // xor with initialization vector
+		cipherTextBytesBlock := ciphertextBytes[bs:be]
+		ecbDecrypted := DecryptAesInECB(cipherTextBytesBlock, key) // decrypt with ECB
+		plainTextBlock := shared.XorByteVectors(ecbDecrypted, iv) // xor with initialization vector
+		copy(output[bs:be], plainTextBlock) // update final fnc output
+		iv = cipherTextBytesBlock // update IV for next iteration
 	}
-	return ""
+	output = unpadPKCS7(output)
+	return output
 }

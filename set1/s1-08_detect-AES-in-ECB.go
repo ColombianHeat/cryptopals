@@ -5,19 +5,6 @@ import (
 	"encoding/hex"
 )
 
-// compareByteArrs takes two byte arrays and returns true if they are equal, false if not
-func compareByteArrs(arr1, arr2 []byte) bool {
-	if len(arr1) != len(arr2) {
-		return false
-	}
-	for i := 0; i < len(arr1); i++ {
-		if arr1[i] != arr2[i] {
-			return false
-		}
-	}
-	return true
-}
-
 // Input many lines of hex, detect which one is most likely to be encrypted using AES in ECB, returns
 // the line index of the most likely line as an int
 func DetectAesInECB(ciphertextPath string, key string, blockSize int) int {
@@ -43,7 +30,7 @@ func DetectAesInECB(ciphertextPath string, key string, blockSize int) int {
 				break
 			}
 			for j := i + 1; j < nBlocks; j++ {
-				if compareByteArrs(block, blocksArr[j]) {
+				if shared.CompareByteArrs(block, blocksArr[j]) {
 					idxsBlocksRepeated = append(idxsBlocksRepeated, idx) // contains line numbers, one per detected repetition
 				}
 			}
