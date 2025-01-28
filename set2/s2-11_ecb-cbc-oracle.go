@@ -17,7 +17,7 @@ func RandAESKey(blockSize int) []byte {
 }
 
 func EncryptAESInCBC(plainText []byte, key string) []byte {
-	blockSize := len([]byte(key))
+	blockSize := 16 // always for AES
 	plainText = ImplementPKCSPadding(plainText, blockSize)
 	iv := make([]byte, blockSize) // initialization vector (all zeroes)
 	output := make([]byte, len(plainText))
@@ -37,7 +37,8 @@ func EncryptAESInCBC(plainText []byte, key string) []byte {
 	return output
 }
 
-func ECBorCBCOracle(plainText string, blockSize int) []byte {
+func ECBorCBCOracle(plainText string) []byte {
+	blockSize := 16 // always for AES
 	key := RandAESKey(blockSize)
 	mode := rand.Intn(2) // 0 = ECB, 1 = CBC
 
@@ -54,7 +55,8 @@ func ECBorCBCOracle(plainText string, blockSize int) []byte {
 
 	if mode == 0 {
 		fmt.Println("Challenge 11: ECB mode")
-		return EncryptAesInECB([]byte(plainText), string(key)) // FIXME: This throws an error (line 20). Why?
+		plainText = string(ImplementPKCSPadding([]byte(plainText), blockSize))
+		return EncryptAesInECB([]byte(plainText), string(key))
 	} else if mode == 1 {
 		fmt.Println("Challenge 11: CBC mode")
 		return EncryptAESInCBC([]byte(plainText), string(key))

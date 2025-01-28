@@ -7,7 +7,8 @@ import (
 )
 
 func EncryptAesInECB(plainTextBytes []byte, key string) []byte {
-	blockSize := len([]byte(key))
+	// NOTE: This fnc expects a plaintext input of length modulo 16. Remember to pad before passing as input
+	blockSize := 16 // always for AES
 	cipher, err := aes.NewCipher([]byte(key)) // AES cipher using key of length blocksize. 16 bytes in this case
 	if err != nil {
 		panic(err)
@@ -24,7 +25,7 @@ func EncryptAesInECB(plainTextBytes []byte, key string) []byte {
 
 // The ECB decrypt fnc in set 1 takes a file path as input. This takes a ciphertext string directly
 func DecryptAesInECB(ciphertextBytes []byte, key string) []byte {
-	blockSize := len([]byte(key))
+	blockSize := 16 // always for AES
 	cipher, err := aes.NewCipher([]byte(key)) // AES cipher using key of length blocksize
 	if err != nil {
 		panic(err)
@@ -53,7 +54,7 @@ func unpadPKCS7(plainTextBytes []byte) []byte {
 }
 
 func DecryptCBCMode(cipherTextPath string, key string) []byte {
-	blockSize := len([]byte(key))
+	blockSize := 16 // always for AES
 	iv := make([]byte, blockSize) // initialization vector (all zeroes)
 	ciphertextB64 := shared.ImportTxtFile(cipherTextPath)
 	ciphertextBytes, err := base64.StdEncoding.DecodeString(ciphertextB64)

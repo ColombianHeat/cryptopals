@@ -21,10 +21,10 @@ func TestEncryptAESInCBC(t *testing.T) {
 }
 
 func TestECBorCBCOracle(t *testing.T) {
-	got := ECBorCBCOracle("Sample input. How is everybody doing on this fine January afternoon?", 16)
-	want := make([]byte, 16)
-
-	if !shared.CompareByteArrs(got, want) {
-		t.Errorf("\ngot %v,\nwant %v", got, want)
+	blockSize := 16
+	ciphertext := ECBorCBCOracle("Sample input. How is everybody doing on this fine January afternoon?")
+	
+	if len(ciphertext)%blockSize != 0 {
+		t.Errorf("ciphertext is not a multiple of AES block size (16)!")
 	}
 }
