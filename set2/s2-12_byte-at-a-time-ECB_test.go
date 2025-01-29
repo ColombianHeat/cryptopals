@@ -5,7 +5,9 @@ import (
 )
 
 func TestByteAtATimeECB(t *testing.T) {
-	got := ByteAtATimeECB()
+	yourString := "THIS IS MY PLAINTEXT. I LIKE IT VERY MUCHZZZZZZZZZZZZZZZZZZZZZZZZ"
+	randomKey := RandAESKey(16)
+	got := string(ByteAtATimeECB(yourString, randomKey))
 	want := "What I want"
 
 	if got != want {

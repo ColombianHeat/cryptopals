@@ -6,11 +6,11 @@ import (
 	"math/rand"
 )
 
-// RandAESKey returns a randomly generated AES key of length blockSize
+// RandAESKey returns a randomly generated AES key of length keySize
 // The key is suitable for AES encryption and decryption in ECB and CBC modes.
-func RandAESKey(blockSize int) []byte {
-	key := make([]byte, blockSize)
-	for i := 0; i < blockSize; i++ {
+func RandAESKey(keySize int) []byte {
+	key := make([]byte, keySize)
+	for i := 0; i < keySize; i++ {
 		key[i] = byte(rand.Intn(256))
 	}
 	return key
